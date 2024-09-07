@@ -1,49 +1,58 @@
 import streamlit as st
-import numpy as np
 import cv2
+import numpy as np
+import pandas as pd
+from sklearn.ensemble import RandomForestClassifier
 import joblib
 
-# Load the trained model
-model = joblib.load('gesture_classifier.pkl')
+# Load the model
+@st.cache_resource
+def load_model():
+    model = joblib.load('gesture_classifier.pkl')
+    return model
 
-def preprocess_frame(frame):
-    """Preprocess the frame for the model."""
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    resized = cv2.resize(gray, (64, 64))  # Adjust size as needed
-    normalized = resized / 255.0  # Normalize if required
-    return normalized
+model = load_model()
 
-def main():
-    st.title("Sign Language Recognition")
+# Set up the Streamlit app layout
+st.title('Sign Language Recognition')
 
-    # Initialize video capture
-    cap = cv2.VideoCapture(0)
+# Initialize a video capture object
+cap = cv2.VideoCapture(0)
+
+st.write("Press 'Space' to capture a frame.")
+
+# Create a unique key for the video capture start button
+if st.button('Start Capture', key='start_capture'):
+    st.write("Capture started. Press 'Space' to capture a frame.")
+
+    # Display a frame to show video feed
     stframe = st.empty()
-
+    
     while True:
         ret, frame = cap.read()
         if not ret:
-            st.write("Failed to grab frame")
+            st.write("Failed to grab frame.")
+            break
+        
+        # Display the video feed
+        stframe.image(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB), channels="RGB")
+
+        # Convert frame to grayscale and preprocess
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        resized_frame = cv2.resize(gray, (64, 64))
+        reshaped_frame = resized_frame.reshape(1, -1)  # Flatten the image
+
+        # Use a unique key for the prediction button
+        if st.button('Predict', key='predict_button'):
+            try:
+                prediction = model.predict(reshaped_frame)
+                st.write(f"Prediction: {prediction[0]}")
+            except Exception as e:
+                st.write(f"Error: {e}")
+
+        # Stop capturing when 'q' is pressed
+        if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 
-        # Preprocess the frame
-        preprocessed_frame = preprocess_frame(frame)
-        
-        # Ensure preprocessed_frame is in the correct shape for the model
-        reshaped_frame = np.reshape(preprocessed_frame, (1, -1))
-        
-        # Predict using the model
-        try:
-            prediction = model.predict(reshaped_frame)
-            st.write(f"Prediction: {prediction[0]}")
-        except Exception as e:
-            st.write(f"Error during prediction: {e}")
-
-        # Display the frame
-        stframe.image(frame, channels="BGR")
-
-    cap.release()
-    cv2.destroyAllWindows()
-
-if __name__ == "__main__":
-    main()
+cap.release()
+cv2.destroyAllWindows()
