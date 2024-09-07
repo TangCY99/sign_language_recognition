@@ -1,30 +1,53 @@
 import streamlit as st
-import pandas as pd
-import numpy as np
-import joblib  # Use joblib for loading the model
 import cv2
-from PIL import Image
+import numpy as np
+import pickle
 
-# Load the model
-model = joblib.load('gesture_classifier.pkl')
+# Load the trained model
+model_path = "gesture_classifier.pkl"
+with open(model_path, 'rb') as f:
+    model = pickle.load(f)
 
-# Function to make predictions
-def predict_gesture(image):
-    # Preprocess the image and predict
-    # This is a placeholder. Replace with your actual image processing code.
-    # For example, extract features and use the model to make a prediction.
-    features = np.array([0])  # Dummy feature array; replace with actual feature extraction
-    prediction = model.predict(features)
-    return prediction[0]
+# Define labels for gestures
+labels = {
+    0: "siapa",
+    1: "bila",
+    2: "mana",
+    3: "apa",
+    4: "kenapa",
+    5: "bagaimana"
+}
 
-st.title('Sign Language Recognition App')
+# Webcam input
+def main():
+    st.title("Sign Language Recognition")
 
-uploaded_file = st.file_uploader("Choose an image...", type="jpg")
-if uploaded_file is not None:
-    # Load and display the image
-    image = Image.open(uploaded_file)
-    st.image(image, caption='Uploaded Image.', use_column_width=True)
+    # Open the webcam
+    run = st.checkbox('Run Webcam')
+    FRAME_WINDOW = st.image([])
 
-    # Predict the gesture
-    prediction = predict_gesture(image)
-    st.write(f'Predicted gesture: {prediction}')
+    if run:
+        cap = cv2.VideoCapture(0)
+        while run:
+            ret, frame = cap.read()
+            if not ret:
+                st.write("Error: Cannot access the camera.")
+                break
+            
+            # Preprocess the frame for the model
+            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            resized_frame = cv2.resize(gray_frame, (64, 64)).flatten()
+            reshaped_frame = np.reshape(resized_frame, (1, -1))
+
+            # Predict gesture
+            prediction = model.predict(reshaped_frame)
+            predicted_gesture = labels[int(prediction[0])]
+
+            # Display the frame and prediction
+            FRAME_WINDOW.image(frame)
+            st.write(f"Predicted Gesture: {predicted_gesture}")
+
+        cap.release()
+
+if __name__ == "__main__":
+    main()

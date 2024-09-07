@@ -7,3 +7,4 @@ __pycache__/
 
 # Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
+echo "venv/" >> .gitignore
